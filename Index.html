@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Snake Game</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Press Start 2P', cursive;
+        }
+        .container {
+            max-width: 90%;
+            width: 100%;
+            text-align: center;
+            position: relative; /* Ensure relative positioning for absolute elements */
+        }
+        canvas {
+            background-color: #000;
+            display: block;
+            border: 8px solid #00ff00;
+            image-rendering: pixelated;
+            max-width: 100%;
+            margin: 10px auto;
+        }
+        h1, #score {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .button {
+            width: 50px;
+            height: 50px;
+            margin: 5px;
+            background-color: #00ff00;
+            border: 2px solid #333;
+            font-size: 20px;
+            font-family: 'Press Start 2P', cursive;
+            cursor: pointer;
+            text-align: center;
+            line-height: 50px;
+            color: #000;
+        }
+        .popup {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 1000;
+            max-width: 90%;
+            text-align: center;
+        }
+        .popup p {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .popup button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #00ff00;
+            border: 2px solid #333;
+            color: #000;
+            cursor: pointer;
+        }
+        #pause {
+            position: absolute;
+            top: -65px; /* Adjusted top position */
+            RIGHT: 270px; /* Adjusted left position */
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nakli Mitra (Snake) ka khela</h1>
+        <canvas id="gameCanvas" width="300" height="300"></canvas>
+        <div id="score">Score: 0</div>
+        <div class="controls">
+            <div class="button" id="left">◄</div>
+            <div class="button" id="up">▲</div>
+            <div class="button" id="down">▼</div>
+            <div class="button" id="right">►</div>
+            <div class="button" id="pause">Pause</div>
+        </div>
+        <div class="popup" id="gameOverPopup">
+            <p>Bas itne mein fatt gayi?!</p>
+            <p><span id="finalScore"></span></p> 
+            <button onclick="restartGame()">Phirse Khelega?</button>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        const box = 15; // Adjusted box size for smaller screens
+        const canvasSize = 20;
+        const speed = 200;  // Adjust speed here
+
+        let snake = [];
+        snake.push({ x: 9 * box, y: 10 * box }); // Initial snake position
+
+        let food = {
+            x: Math.floor(Math.random() * canvasSize) * box,
+            y: Math.floor(Math.random() * canvasSize) * box,
+        };
+
+        let direction = "RIGHT"; // Initial direction
+        let score = 0;
+        let gameRunning = true;
+        let gamePaused = false;
+        let gameInterval;
+
+        document.addEventListener("keydown", directionHandler);
+
+        document.getElementById('left').addEventListener('click', () => directionHandler({ keyCode: 37 }));
+        document.getElementById('up').addEventListener('click', () => directionHandler({ keyCode: 38 }));
+        document.getElementById('down').addEventListener('click', () => directionHandler({ keyCode: 40 }));
+        document.getElementById('right').addEventListener('click', () => directionHandler({ keyCode: 39 }));
+        document.getElementById('pause').addEventListener('click', togglePause);
+
+        function directionHandler(event) {
+            if (!gameRunning || gamePaused) return;
+
+            if (event.keyCode == 37 && direction != "RIGHT") {
+                direction = "LEFT";
+            } else if (event.keyCode == 38 && direction != "DOWN") {
+                direction = "UP";
+            } else if (event.keyCode == 39 && direction != "LEFT") {
+                direction = "RIGHT";
+            } else if (event.keyCode == 40 && direction != "UP") {
+                direction = "DOWN";
+            }
+        }
+
+        function togglePause() {
+            if (!gameRunning) return;
+
+            if (!gamePaused) {
+                clearInterval(gameInterval);
+                gamePaused = true;
+                document.getElementById('pause').innerText = "Resume";
+            } else {
+                gameInterval = setInterval(draw, speed);
+                gamePaused = false;
+                document.getElementById('pause').innerText = "Pause";
+            }
+        }
+
+        function collision(head, array) {
+            for (let i = 1; i < array.length; i++) { // Start from 1 to skip the head
+                if (head.x === array[i].x && head.y === array[i].y) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas
+
+            for (let i = 0; i < snake.length; i++) {
+                ctx.fillStyle = i === 0 ? "#0f0" : "#fff";
+                ctx.fillRect(snake[i].x, snake[i].y, box, box);
+                ctx.strokeStyle = "#000";
+                ctx.strokeRect(snake[i].x, snake[i].y, box, box);
+            }
+
+            ctx.fillStyle = "#f00";
+            ctx.fillRect(food.x, food.y, box, box);
+
+            let snakeX = snake[0].x;
+            let snakeY = snake[0].y;
+
+            if (direction === "LEFT") snakeX -= box;
+            if (direction === "UP") snakeY -= box;
+            if (direction === "RIGHT") snakeX += box;
+            if (direction === "DOWN") snakeY += box;
+
+            // Check if snake hits the wall
+            if (snakeX < 0 || snakeX >= canvas.width || snakeY < 0 || snakeY >= canvas.height) {
+                gameOver();
+                return;
+            }
+
+            let newHead = {
+                x: snakeX,
+                y: snakeY,
+            };
+
+            // Check if snake eats itself
+            if (collision(newHead, snake)) {
+                gameOver();
+                return;
+            }
+
+            // Check if snake eats the food
+            if (snakeX === food.x && snakeY === food.y) {
+                score++;
+                document.getElementById('score').innerText = "Score: " + score;
+                food.x = Math.floor(Math.random() * canvasSize) * box;
+                food.y = Math.floor(Math.random() * canvasSize) * box;
+            } else {
+                snake.pop(); // Remove the tail
+            }
+
+            snake.unshift(newHead); // Add new head to snake
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            clearInterval(gameInterval);
+            ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#fff";
+            ctx.font = "30px Press Start 2P";
+            ctx.fillText("Game Over!", canvas.width / 2 - 90, canvas.height / 2 - 10);
+            ctx.font = "20px Press Start 2P";
+            ctx.fillText("Final Score: " + score, canvas.width / 2 - 70, canvas.height / 2 + 30);
+            document.getElementById('gameOverPopup').style.display = 'block';
+        }
+
+        function restartGame() {
+            snake = [];
+            snake.push({ x: 9 * box, y: 10 * box }); // Initial snake position
+            direction = "RIGHT";
+            score = 0;
+            document.getElementById('score').innerText = "Score: 0";
+            document.getElementById('gameOverPopup').style.display = 'none';
+            gameRunning = true;
+            gamePaused = false;
+            document.getElementById('pause').innerText = "Pause";
+            gameInterval = setInterval(draw, speed);
+        }
+
+        gameInterval = setInterval (draw, speed);
+
+        </script>
+    </body>
+    <style> 
+    .foo { 
+      top: -15;
+      
+    }
+    </style>
+    <p class="foo">Made by konreik </p>
+</html>
